@@ -3,20 +3,23 @@ from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filte
 import re
 import os
 
-# Bot token will be taken from Railway environment variable
 BOT_TOKEN = os.getenv("8599332997:AAFxPZjtXcPJ1UZzJWh8YWyvairZXX_ePrs")
 
-def extract_shopsy_link(flipkart_url: str):
-    # Extract slug and itm ID from Flipkart URL
-    match = re.search(r"flipkart\.com/(.+?)/p/(itm[a-zA-Z0-9]+)", flipkart_url)
-    if not match:
+def extract_shopsy_link(text: str):
+    # Find Flipkart product URL (desktop or mobile)
+    url_match = re.search(
+        r"https?://(www\.|m\.)?flipkart\.com/([^/\s]+(?:/[^/\s]+)*)/p/(itm[a-zA-Z0-9]+)[^\s]*",
+        text
+    )
+
+    if not url_match:
         return None
 
-    slug = match.group(1)
-    itm = match.group(2)
+    slug = url_match.group(2)
+    itm = url_match.group(3)
 
-    # Extract PID
-    pid_match = re.search(r"pid=([A-Z0-9]+)", flipkart_url, re.I)
+    # Extract PID from full text
+    pid_match = re.search(r"pid=([A-Z0-9]+)", text, re.I)
     if not pid_match:
         return None
 
@@ -27,17 +30,11 @@ def extract_shopsy_link(flipkart_url: str):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
-    # Ignore messages that are not Flipkart links
-    if "flipkart.com" not in text:
-        return
-
     shopsy_link = extract_shopsy_link(text)
 
     if not shopsy_link:
-        await update.message.reply_text("Invalid Flipkart product link")
-        return
+        return  # Ignore non-product messages silently
 
-    # Reply with ONLY the Shopsy link
     await update.message.reply_text(shopsy_link)
 
 if __name__ == "__main__":
